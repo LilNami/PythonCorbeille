@@ -1,0 +1,184 @@
+# Créé par Hubert, le 01/03/2017 en Python 3.2
+# Edité par Hubert le 16/02/2020 en Python 3.8.1
+import pygame, sys, random, math, time
+from popup import *
+from pygame.locals import *
+
+"""
+Class GameSprite
+Load a sprite
+Place it on the scene at the provided coordinates
+"""
+class GameSprite(pygame.sprite.Sprite):
+    def __init__(self, sprite, xpos, ypos):
+        super(GameSprite, self).__init__()
+        self.image = pygame.image.load(sprite)
+        self.rect = self.image.get_rect()
+        self.rect.x = int(xpos)
+        self.rect.y = int(ypos)
+
+# Global variables
+WIDTH = 800
+HEIGHT = 600
+RED = (255,0,0)
+BLACK  = (0,0,0)
+REFRESH = 12
+
+# Game state variable
+is_started = False
+you_win = False
+
+paper_ball = GameSprite("ressources/paper_ball.png", 20, 520,)
+trash = GameSprite("ressources/trash.png", 0,0)
+
+# Quit the game
+def leave_game():
+    pygame.display.quit()
+    pygame.quit()
+    sys.exit()
+
+# Update screen display
+def update_screen():
+    global is_started, you_win
+    
+    screen.blit(background_image, (0, 0))
+
+    if not is_started:
+        display_text("Press SPACE to start the game", BLACK, 0, 0, 'Comic Sans MS', 40)
+
+    if you_win:
+        display_text("Resetting...", RED, 0, 0, 'Comic Sans MS', 40)
+        pygame.display.flip()
+        time.sleep(5)
+        is_started = False
+        you_win = False
+
+    dots_group.draw(screen)
+    trash_group.draw(screen)
+    paper_ball_group.draw(screen)
+    
+    pygame.display.flip()
+
+# Start the Game
+def start_game():
+    global is_started
+
+    print ("Start Game")
+
+    is_started = True
+
+    paper_ball.rect.y = 520
+    paper_ball.rect.x = 20
+    
+    trash.rect.x = random.randint(200, 720)
+    trash.rect.y = random.randint(300, 530)
+
+# Display colored text in position x and y
+def display_text(text, color, x, y, font_name, font_size, centered=True):
+    font = pygame.font.SysFont (font_name, font_size, True)
+
+    message = font.render (text, True, color)
+
+    textrect  = message.get_rect()
+
+
+    screen.blit(message, (int(WIDTH / 2 - textrect.width / 2), int(textrect.height)))
+
+# Move the paper ball acording to the angle and power
+def animation():
+    global you_win
+    
+    my_time = 0
+
+    # Convert angle to radiant
+    new_angle = float(angle) / 180 * math.pi
+
+    while True:
+        x = 20 + int(power) * my_time * math.cos(new_angle)
+        y = 80 - 5*my_time**2 + int(power) * my_time * math.sin(new_angle)
+        y = 600 - y # Translate y origin is acting as bottom left
+
+        # Set the paper ball to new position
+        paper_ball.rect.x = int(x)
+        paper_ball.rect.y = int(y)
+
+        # Add a dot in corresponding group
+        dots_group.add(GameSprite("ressources/dot.png", x + paper_ball.rect.width / 2, y + paper_ball.rect.height / 2))
+
+        # Update the screen to see the paperball moving
+        update_screen()
+
+        # Check if the paperball is visible, otherwise set it back to the origin
+        if y > HEIGHT or x > WIDTH:
+            paper_ball.rect.x = 20
+            paper_ball.rect.y = 520
+            break
+        elif trash.rect.x <= x <= trash.rect.x + trash.rect.width and trash.rect.y <= y <= trash.rect.y + trash.rect.width :
+            you_win = True
+            dots_group.empty()
+            break
+        else:
+            # Update time
+            my_time += 0.33333333333333333333333333333333
+        
+        clock.tick(REFRESH)
+
+# Initialize PyGame
+pygame.init()
+
+# Game clock
+clock = pygame.time.Clock()
+
+# The background image
+background_image = pygame.image.load("ressources/city.png")
+
+# Sprite groups
+paper_ball_group = pygame.sprite.Group()
+trash_group = pygame.sprite.Group()
+dots_group = pygame.sprite.Group()
+
+paper_ball_group.add(paper_ball)
+trash_group.add(trash)
+
+# Create display
+screen = pygame.display.set_mode ((WIDTH, HEIGHT))
+
+# Window name
+pygame.display.set_caption("Game")
+
+#Main loop (While "True" is true, do...)
+while True:
+
+    update_screen() #background image
+
+    if is_started:
+        angle = ask_question (screen, "Angle de tir ? (en degré)")
+        if not is_float(angle):
+            print (angle, " n'est pas un nombre valide")
+            continue
+        if angle == -1:
+            is_started = False
+        else:
+            print ("Angle saisi :", angle)
+
+        power = ask_question (screen, "Puissance du tir ? (vitesse initiale en m/s)")
+        if not is_float(power):
+            print (power, " n'est un nombre valide")
+            continue
+        if power == -1:
+            is_started = False
+        else:
+            print ("Puissance saisie :", power)
+            animation()
+            
+
+# Main Event Loop
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT: #quit game
+            leave_game()
+        if not hasattr(event, 'key'):
+            continue
+        if event.type == pygame.KEYDOWN:
+            if event.key == K_SPACE:
+                start_game()
+            
